@@ -12,7 +12,9 @@ import argparse
 import csv
 import json
 import math
+import os
 import sys
+from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 
@@ -66,9 +68,22 @@ def process_single(args) -> None:
 
 
 def process_batch(input_csv: str, output_csv: str) -> None:
-    with open(input_csv, mode="r", encoding="utf-8-sig") as f:
+    input_path = Path(input_csv).resolve()
+    if not input_path.exists():
+        raise FileNotFoundError(f"Input CSV not found: {input_csv}")
+    if not input_path.is_file():
+        raise ValueError(f"Input path is not a file: {input_csv}")
+
+    output_path = Path(output_csv).resolve()
+    output_dir = output_path.parent
+    if not output_dir.exists():
+        raise FileNotFoundError(f"Output directory does not exist: {output_dir}")
+
+    with open(input_path, mode="r", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         fieldnames = list(reader.fieldnames or [])
+        if not fieldnames:
+            raise ValueError(f"Input CSV has no headers: {input_csv}")
         rows = list(reader)
 
     out_fields = fieldnames + ["score", "classification", "clinical_recommendation"]
@@ -82,7 +97,7 @@ def process_batch(input_csv: str, output_csv: str) -> None:
         row_dict["clinical_recommendation"] = calc_res["clinical_recommendation"]
         out_rows.append(row_dict)
 
-    with open(output_csv, mode="w", encoding="utf-8", newline="") as f:
+    with open(output_path, mode="w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=out_fields)
         writer.writeheader()
         writer.writerows(out_rows)
@@ -108,10 +123,14 @@ def main(argv=None):
 
     args = parser.parse_args(argv)
 
-    if args.command == "single":
-        args.func(args)
-    elif args.command == "batch":
-        process_batch(args.input, args.output)
+    try:
+        if args.command == "single":
+            args.func(args)
+        elif args.command == "batch":
+            process_batch(args.input, args.output)
+    except (FileNotFoundError, ValueError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
