@@ -1,137 +1,142 @@
 #!/usr/bin/env python3
-"""
-Stewart Physicochemical Acid-Base & Strong Ion Difference (SID)
-Calculates apparent SID (SIDa), effective SID (SIDe), and Strong Ion Gap (SIG) for complex ICU dysnatremias.
+"""Stewart–Figge acid–base calculations.
 
-Zero-dependency Python implementation with single and batch evaluation.
-Author: Dr. Abu Suraih Sakhri
-License: MIT
+All strong ion concentrations are supplied in mmol/L, including ionized
+Ca2+ and Mg2+ (converted to mEq/L by multiplying by their charge).
+Albumin is in g/L, phosphate in mmol/L, PaCO2 in mmHg.
+This is an educational/research calculator, not a treatment algorithm.
 """
-
 import argparse
 import csv
 import json
 import math
-import os
 import sys
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+
+INPUT_FIELDS = (
+    "sodium", "potassium", "ionized_calcium", "ionized_magnesium",
+    "chloride", "lactate", "ph", "pco2", "albumin", "phosphate",
+)
+OUTPUT_FIELDS = (
+    "sida_mEq_L", "side_mEq_L", "sig_mEq_L",
+    "bicarbonate_mmol_L", "albumin_charge_mEq_L", "phosphate_charge_mEq_L",
+)
 
 
-def calculate_metrics(**kwargs) -> Dict[str, Any]:
+def calculate_metrics(*, sodium, potassium, ionized_calcium, ionized_magnesium,
+                      chloride, lactate, ph, pco2, albumin, phosphate):
+    """Compute SIDa, SIDe and SIG using the Stewart–Figge approximation.
+
+    SIDa = Na + K + 2*iCa + 2*iMg - Cl - lactate
+    HCO3 = 0.0301 * PaCO2 * 10**(pH - 6.1)
+    SIDe = HCO3 + albumin*(0.123*pH - 0.631)
+                 + phosphate*(0.309*pH - 0.469)
+    SIG = SIDa - SIDe.
+
+    Albumin g/L, phosphate and ions mmol/L, PaCO2 mmHg.
+    Values are calculation results, not diagnostic thresholds.
     """
-    Core domain algorithm for stewart-acid-base-sid-analyzer.
-    """
-    params = {}
-    for k, v in kwargs.items():
-        if v is not None:
-            try:
-                params[k] = float(v)
-            except (ValueError, TypeError):
-                params[k] = str(v)
+    vals = {}
+    for name, value in locals().copy().items():
+        try:
+            number = float(value)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError(f"{name} must be a finite number") from exc
+        if not math.isfinite(number):
+            raise ValueError(f"{name} must be a finite number")
+        vals[name] = number
+    if not 6.0 <= vals["ph"] <= 8.5:
+        raise ValueError("ph must be between 6.0 and 8.5")
+    if vals["pco2"] <= 0:
+        raise ValueError("pco2 must be positive (mmHg)")
+    for name in INPUT_FIELDS:
+        if name not in ("ph", "pco2") and vals[name] < 0:
+            raise ValueError(f"{name} must be non-negative")
 
-    # Deterministic domain logic
-    numeric_vals = [val for val in params.values() if isinstance(val, (int, float))]
-    primary_val = numeric_vals[0] if numeric_vals else 1.0
-
-    score = primary_val
-    for idx, nv in enumerate(numeric_vals[1:], start=2):
-        score += nv * (1.0 / idx)
-
-    rounded_score = round(score, 2)
-    
-    # Classification / tiering
-    if rounded_score < 10.0:
-        tier = "Low / Standard"
-        action = "Standard monitoring or negative cutoff"
-    elif rounded_score < 25.0:
-        tier = "Moderate / Intermediate"
-        action = "Close observation or secondary evaluation"
-    else:
-        tier = "High / Severe"
-        action = "Urgent clinical intervention or primary positive finding"
-
+    sida = (vals["sodium"] + vals["potassium"]
+            + 2 * vals["ionized_calcium"] + 2 * vals["ionized_magnesium"]
+            - vals["chloride"] - vals["lactate"])
+    bicarbonate = 0.0301 * vals["pco2"] * 10 ** (vals["ph"] - 6.1)
+    alb_charge = vals["albumin"] * (0.123 * vals["ph"] - 0.631)
+    pi_charge = vals["phosphate"] * (0.309 * vals["ph"] - 0.469)
+    side = bicarbonate + alb_charge + pi_charge
+    sig = sida - side
     return {
-        "tool": "stewart-acid-base-sid-analyzer",
-        "score": rounded_score,
-        "classification": tier,
-        "clinical_recommendation": action,
-        "inputs_evaluated": len(params),
+        "sida_mEq_L": round(sida, 3),
+        "side_mEq_L": round(side, 3),
+        "sig_mEq_L": round(sig, 3),
+        "bicarbonate_mmol_L": round(bicarbonate, 3),
+        "albumin_charge_mEq_L": round(alb_charge, 3),
+        "phosphate_charge_mEq_L": round(pi_charge, 3),
+        "method": "Stewart-Figge (Henderson-Hasselbalch bicarbonate estimate)",
+        "note": "SIG reflects unmeasured net strong-ion charge within this approximation; interpret with clinical context.",
     }
 
 
-def process_single(args) -> None:
-    kwargs = vars(args)
-    kwargs.pop("func", None)
-    res = calculate_metrics(**kwargs)
-    print(json.dumps(res, indent=2))
-
-
-def process_batch(input_csv: str, output_csv: str) -> None:
-    input_path = Path(input_csv).resolve()
-    if not input_path.exists():
+def process_batch(input_csv, output_csv):
+    """Process complete, header-matched CSV records; reject incomplete rows."""
+    source = Path(input_csv)
+    if not source.is_file():
         raise FileNotFoundError(f"Input CSV not found: {input_csv}")
-    if not input_path.is_file():
-        raise ValueError(f"Input path is not a file: {input_csv}")
+    target = Path(output_csv)
+    if not target.parent.is_dir():
+        raise FileNotFoundError(f"Output directory does not exist: {target.parent}")
 
-    output_path = Path(output_csv).resolve()
-    output_dir = output_path.parent
-    if not output_dir.exists():
-        raise FileNotFoundError(f"Output directory does not exist: {output_dir}")
+    with source.open("r", encoding="utf-8-sig", newline="") as stream:
+        reader = csv.DictReader(stream)
+        headers = reader.fieldnames or []
+        if not headers:
+            raise ValueError("Input CSV has no headers")
+        if len(headers) != len(set(headers)):
+            raise ValueError("Input CSV has duplicate headers")
+        missing = [field for field in INPUT_FIELDS if field not in headers]
+        if missing:
+            raise ValueError("Missing required CSV columns: " + ", ".join(missing))
+        if any(field in headers for field in OUTPUT_FIELDS):
+            raise ValueError("Input CSV contains reserved result column names")
+        result_rows = []
+        for row_num, row in enumerate(reader, start=2):
+            if None in row:
+                raise ValueError(f"Extra columns in CSV row {row_num}")
+            try:
+                computed = calculate_metrics(**{k: row[k] for k in INPUT_FIELDS})
+            except ValueError as exc:
+                raise ValueError(f"Invalid input in CSV row {row_num}: {exc}") from exc
+            result_rows.append({**row, **{k: computed[k] for k in OUTPUT_FIELDS}})
 
-    with open(input_path, mode="r", encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        fieldnames = list(reader.fieldnames or [])
-        if not fieldnames:
-            raise ValueError(f"Input CSV has no headers: {input_csv}")
-        rows = list(reader)
+    # Neutralize CSV formula injection in text supplied by external datasets.
+    def safe_cell(v):
+        return "'" + v if isinstance(v, str) and v.lstrip().startswith(("=", "+", "-", "@", "\t", "\r")) else v
 
-    out_fields = fieldnames + ["score", "classification", "clinical_recommendation"]
-    out_rows = []
-
-    for r in rows:
-        calc_res = calculate_metrics(**r)
-        row_dict = dict(r)
-        row_dict["score"] = calc_res["score"]
-        row_dict["classification"] = calc_res["classification"]
-        row_dict["clinical_recommendation"] = calc_res["clinical_recommendation"]
-        out_rows.append(row_dict)
-
-    with open(output_path, mode="w", encoding="utf-8", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=out_fields)
+    with target.open("w", encoding="utf-8", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=[*headers, *OUTPUT_FIELDS])
         writer.writeheader()
-        writer.writerows(out_rows)
-
-    print(f"Processed {len(out_rows)} records -> {output_csv}")
+        for row in result_rows:
+            writer.writerow({k: safe_cell(v) for k, v in row.items()})
+    return len(result_rows)
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Stewart Physicochemical Acid-Base & Strong Ion Difference (SID)")
-    subparsers = parser.add_subparsers(dest="command", required=True)
-
-    # Single parser
-    single_parser = subparsers.add_parser("single", help="Evaluate single case")
-    single_parser.add_argument("--v1", type=float, default=10.0, help="Primary parameter")
-    single_parser.add_argument("--v2", type=float, default=5.0, help="Secondary parameter")
-    single_parser.add_argument("--v3", type=float, default=2.0, help="Tertiary parameter")
-    single_parser.set_defaults(func=process_single)
-
-    # Batch parser
-    batch_parser = subparsers.add_parser("batch", help="Process batch CSV")
-    batch_parser.add_argument("-i", "--input", required=True, help="Input CSV")
-    batch_parser.add_argument("-o", "--output", default="results.csv", help="Output CSV")
-
+    parser = argparse.ArgumentParser(description="Stewart–Figge SIDa, SIDe and SIG calculator")
+    commands = parser.add_subparsers(dest="command", required=True)
+    single = commands.add_parser("single", help="Calculate one complete specimen")
+    for name in INPUT_FIELDS:
+        single.add_argument("--" + name.replace("_", "-"), type=float, required=True)
+    batch = commands.add_parser("batch", help="Read specimens from CSV")
+    batch.add_argument("-i", "--input", required=True)
+    batch.add_argument("-o", "--output", default="results.csv")
     args = parser.parse_args(argv)
-
     try:
         if args.command == "single":
-            args.func(args)
-        elif args.command == "batch":
-            process_batch(args.input, args.output)
-    except (FileNotFoundError, ValueError) as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+            inputs = {k: getattr(args, k) for k in INPUT_FIELDS}
+            print(json.dumps(calculate_metrics(**inputs), indent=2))
+        else:
+            count = process_batch(args.input, args.output)
+            print(f"Processed {count} records -> {args.output}")
+    except (ValueError, FileNotFoundError, PermissionError, OSError) as exc:
+        parser.exit(1, f"Error: {exc}\n")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
