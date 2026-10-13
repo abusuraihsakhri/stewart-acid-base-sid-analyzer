@@ -137,7 +137,7 @@ SIG = SIDa − SIDe
     const values = {};
     for (const name of names) {
       const raw = document.getElementById(name).value.trim();
-      if (raw === "") { error.textContent = "All input fields are required."; clearResults(); return; }
+      if (raw === "") { clearResults(); error.textContent = "All input fields are required."; return; }
       const n = Number(raw);
       if (!Number.isFinite(n) || (name !== "ph" && n < 0)) {
         clearResults(); error.textContent = "Enter finite, non-negative laboratory values."; return;
