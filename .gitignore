@@ -22,4 +22,5 @@ Thumbs.db
 
 # Environment files containing secrets
 .env
-.env.local
+.env.*
+!.env.example
