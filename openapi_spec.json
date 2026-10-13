@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Stewart Acid Base Sid Analyzer API",
-    "description": "Enterprise Distributed Component Platform (Clinical & Cryptographic AI) adhering to CAP / CLSI / NIST Standards.",
-    "version": "3.0.0-ENTERPRISE",
+    "description": "Stewart–Figge calculation API; legacy task-audit demo endpoints are not validated for clinical decision support.",
+    "version": "3.1.0",
     "contact": {
       "name": "Dr. Abu Suraih Sakhri",
       "url": "https://github.com/abusuraihsakhri"
@@ -25,14 +25,14 @@
         "summary": "Prometheus operational metrics",
         "responses": {
           "200": {
-            "description": "Prometheus text metrics"
+            "description": "Operational counters returned as JSON"
           }
         }
       }
     },
     "/api/audit": {
       "post": {
-        "summary": "Dispatch task payload across specialized workers",
+        "summary": "Demonstration task-audit workflow (not a clinical risk score)",
         "requestBody": {
           "content": {
             "application/json": {
@@ -76,7 +76,7 @@
     },
     "/api/chat": {
       "post": {
-        "summary": "Air-gapped supervisory conversational assistant",
+        "summary": "Deterministic mock response (no external model inference)",
         "requestBody": {
           "content": {
             "application/json": {
@@ -107,6 +107,74 @@
         "responses": {
           "200": {
             "description": "Cryptographic audit trail"
+          }
+        }
+      }
+    },
+    "/api/calculate": {
+      "post": {
+        "summary": "Compute SIDa, SIDe and SIG by Stewart–Figge equations",
+        "description": "All strong ions including iCa and iMg are entered in mmol/L, albumin in g/L, phosphate in mmol/L, PaCO2 in mmHg.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sodium": {
+                    "type": "number"
+                  },
+                  "potassium": {
+                    "type": "number"
+                  },
+                  "ionized_calcium": {
+                    "type": "number"
+                  },
+                  "ionized_magnesium": {
+                    "type": "number"
+                  },
+                  "chloride": {
+                    "type": "number"
+                  },
+                  "lactate": {
+                    "type": "number"
+                  },
+                  "ph": {
+                    "type": "number"
+                  },
+                  "pco2": {
+                    "type": "number"
+                  },
+                  "albumin": {
+                    "type": "number"
+                  },
+                  "phosphate": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "sodium",
+                  "potassium",
+                  "ionized_calcium",
+                  "ionized_magnesium",
+                  "chloride",
+                  "lactate",
+                  "ph",
+                  "pco2",
+                  "albumin",
+                  "phosphate"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Calculated SIDa, SIDe, SIG, and components"
+          },
+          "422": {
+            "description": "Invalid input value"
           }
         }
       }

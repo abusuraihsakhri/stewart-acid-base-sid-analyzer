@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f5f7fa">
+<meta name="description" content="Offline Stewart–Figge SIDa, SIDe and strong ion gap calculator with explicit laboratory units.">
+<title>Stewart Acid–Base SID Analyzer</title>
+<style>
+:root{color-scheme:light;font:16px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--ink:#16283b;--muted:#546779;--line:#d5e0e8;--accent:#166b86;--paper:#fff;--bg:#f3f6f9}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink)}
+main{max-width:1060px;margin:0 auto;padding:30px 20px 58px}
+header{margin-bottom:22px}h1{font-size:clamp(1.65rem,3vw,2.25rem);letter-spacing:-.03em;margin:0 0 8px}
+h2{font-size:1.2rem;margin:0 0 14px}h3{margin:0 0 8px;font-size:1rem}
+p{margin:8px 0;color:var(--muted)}.eyebrow{color:var(--accent);font-size:.8rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase}
+.layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(290px,1fr);gap:18px;align-items:start}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:13px;padding:22px;box-shadow:0 4px 14px rgba(20,49,68,.035)}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px}
+label{display:block;font-size:.86rem;font-weight:650;margin-bottom:5px}
+input{display:block;width:100%;padding:10px 12px;border:1px solid #a8b9c7;border-radius:7px;background:white;font:inherit;color:var(--ink)}
+input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #88cbe3;outline-offset:2px}
+small{display:block;color:var(--muted);font-size:.74rem;margin-top:4px}
+.actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:22px}
+button{border:1px solid var(--accent);border-radius:7px;background:var(--accent);color:white;font:inherit;font-weight:650;padding:10px 15px;cursor:pointer}
+button.secondary{background:#fff;color:var(--accent)}
+button:disabled{opacity:.48;cursor:not-allowed}
+.result-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0}
+.result{background:#eaf4f6;border-radius:9px;padding:13px 10px;min-width:0}
+.result strong{display:block;font-size:1.6rem;font-variant-numeric:tabular-nums;line-height:1.5;overflow-wrap:anywhere}
+.result span{font-size:.78rem;color:#31576a;font-weight:700}
+.note{background:#fff7eb;border-left:3px solid #c68c32;padding:12px;font-size:.84rem;border-radius:4px;color:#53411f}
+.error{color:#9b2533;font-weight:650;min-height:1.4em;margin-top:10px}
+.formula{font: .84rem/1.7 ui-monospace,Menlo,Consolas,monospace;background:#f1f5f7;padding:12px;border-radius:8px;overflow-wrap:anywhere}
+footer{margin-top:20px;font-size:.84rem;color:var(--muted)}
+a{color:var(--accent)}
+@media(max-width:780px){.layout{grid-template-columns:1fr}.panel{padding:18px}}
+@media(max-width:460px){main{padding:20px 12px}.fields{grid-template-columns:1fr}.result-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<header>
+<div class="eyebrow">Physicochemical acid–base analysis · Research / education</div>
+<h1>Stewart Acid–Base SID Analyzer</h1>
+<p>Calculate apparent strong ion difference (SIDa), effective strong ion difference (SIDe) and strong ion gap (SIG) directly in your browser. No sign-in or server is required.</p>
+</header>
+<div class="layout">
+<section class="panel" aria-labelledby="inputTitle">
+<h2 id="inputTitle">Measured laboratory inputs</h2>
+<p>Values are a worked example. Enter measurements from the same specimen/time point, respecting the indicated units.</p>
+<form id="calculator">
+<div class="fields">
+<div><label for="sodium">Sodium, Na⁺</label><input id="sodium" name="sodium" type="number" step="any" min="0" value="140" required><small>mmol/L</small></div>
+<div><label for="potassium">Potassium, K⁺</label><input id="potassium" name="potassium" type="number" step="any" min="0" value="4" required><small>mmol/L</small></div>
+<div><label for="ionized_calcium">Ionized calcium, Ca²⁺</label><input id="ionized_calcium" name="ionized_calcium" type="number" step="any" min="0" value="1.2" required><small>mmol/L · charge ×2</small></div>
+<div><label for="ionized_magnesium">Ionized magnesium, Mg²⁺</label><input id="ionized_magnesium" name="ionized_magnesium" type="number" step="any" min="0" value="0.8" required><small>mmol/L · charge ×2</small></div>
+<div><label for="chloride">Chloride, Cl⁻</label><input id="chloride" name="chloride" type="number" step="any" min="0" value="104" required><small>mmol/L</small></div>
+<div><label for="lactate">Lactate</label><input id="lactate" name="lactate" type="number" step="any" min="0" value="1.5" required><small>mmol/L</small></div>
+<div><label for="ph">Blood pH</label><input id="ph" name="ph" type="number" step="any" min="6" max="8.5" value="7.4" required><small>Unitless · 6.0–8.5</small></div>
+<div><label for="pco2">PaCO₂</label><input id="pco2" name="pco2" type="number" step="any" min="0.000001" value="40" required><small>mmHg (not kPa)</small></div>
+<div><label for="albumin">Albumin</label><input id="albumin" name="albumin" type="number" step="any" min="0" value="40" required><small>g/L (not g/dL)</small></div>
+<div><label for="phosphate">Inorganic phosphate</label><input id="phosphate" name="phosphate" type="number" step="any" min="0" value="1.2" required><small>mmol/L (not mg/dL)</small></div>
+</div>
+<div class="actions">
+<button type="submit">Calculate SID / SIG</button>
+<button type="button" class="secondary" id="reset">Restore example</button>
+<button type="button" class="secondary" id="download" disabled>Export CSV</button>
+</div>
+<div role="alert" id="error" class="error"></div>
+</form>
+</section>
+<section class="panel" aria-labelledby="resultTitle">
+<h2 id="resultTitle">Calculated results</h2>
+<p id="status" role="status" aria-live="polite">Calculate to display results.</p>
+<div class="result-grid" aria-label="Strong ion measures">
+<div class="result"><span>SIDa · mEq/L</span><strong id="sida">—</strong></div>
+<div class="result"><span>SIDe · mEq/L</span><strong id="side">—</strong></div>
+<div class="result"><span>SIG · mEq/L</span><strong id="sig">—</strong></div>
+</div>
+<div id="detail" hidden>
+<h3>Charge components</h3>
+<p>Bicarbonate (estimated): <strong id="bicarbonate">—</strong> mmol/L</p>
+<p>Albumin anionic charge: <strong id="albumin_charge">—</strong> mEq/L</p>
+<p>Phosphate anionic charge: <strong id="phosphate_charge">—</strong> mEq/L</p>
+</div>
+<div class="note">These values describe a physicochemical model; they are not stand-alone diagnoses, severity scores or treatment recommendations. Consider analytical uncertainty, unmeasured ions and the full clinical assessment.</div>
+<h3 style="margin-top:22px">Equations</h3>
+<div class="formula">
+SIDa = Na + K + 2·iCa + 2·iMg − Cl − lactate<br>
+HCO₃ = 0.0301 · PaCO₂ · 10^(pH − 6.1)<br>
+Alb⁻ = albumin · (0.123·pH − 0.631)<br>
+Pi⁻ = phosphate · (0.309·pH − 0.469)<br>
+SIDe = HCO₃ + Alb⁻ + Pi⁻<br>
+SIG = SIDa − SIDe
+</div>
+<p><small>SIDa and SIG are in mEq/L. Equations: Stewart–Figge approximation. Divalent cation inputs in mmol/L are explicitly multiplied by 2.</small></p>
+<p><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC2702213/" target="_blank" rel="noopener noreferrer">Physiologic formulation and explanation</a></p>
+</section>
+</div>
+<footer>Calculations run locally. No entered values are uploaded, stored or transmitted by this page. External references open only when selected. This tool is not validated as a medical device.</footer>
+</main>
+<script>
+(function () {
+  "use strict";
+  const names = ["sodium","potassium","ionized_calcium","ionized_magnesium","chloride","lactate","ph","pco2","albumin","phosphate"];
+  const form = document.getElementById("calculator");
+  const error = document.getElementById("error");
+  const download = document.getElementById("download");
+  let lastResult = null;
+
+  function clearResults() {
+    lastResult = null;
+    ["sida","side","sig","bicarbonate","albumin_charge","phosphate_charge"].forEach(function(id) {
+      document.getElementById(id).textContent = "—";
+    });
+    document.getElementById("detail").hidden = true;
+    document.getElementById("status").textContent = "Calculate to display results.";
+    download.disabled = true;
+    error.textContent = "";
+  }
+
+  function compute(v) {
+    const sida = v.sodium + v.potassium + 2 * v.ionized_calcium +
+      2 * v.ionized_magnesium - v.chloride - v.lactate;
+    const bicarbonate = 0.0301 * v.pco2 * Math.pow(10, v.ph - 6.1);
+    const albumin_charge = v.albumin * (0.123 * v.ph - 0.631);
+    const phosphate_charge = v.phosphate * (0.309 * v.ph - 0.469);
+    const side = bicarbonate + albumin_charge + phosphate_charge;
+    return {sida:sida, side:side, sig:sida-side, bicarbonate:bicarbonate,
+            albumin_charge:albumin_charge, phosphate_charge:phosphate_charge};
+  }
+
+  form.addEventListener("submit", function(event) {
+    event.preventDefault();
+    error.textContent = "";
+    if (!form.reportValidity()) return;
+    const values = {};
+    for (const name of names) {
+      const raw = document.getElementById(name).value.trim();
+      if (raw === "") { clearResults(); error.textContent = "All input fields are required."; return; }
+      const n = Number(raw);
+      if (!Number.isFinite(n) || (name !== "ph" && n < 0)) {
+        clearResults(); error.textContent = "Enter finite, non-negative laboratory values."; return;
+      }
+      values[name] = n;
+    }
+    if (values.ph < 6 || values.ph > 8.5 || values.pco2 <= 0) {
+      clearResults(); error.textContent = "pH must be 6–8.5 and PaCO₂ must be positive."; return;
+    }
+    const result = compute(values);
+    if (Object.values(result).some(function(n){return !Number.isFinite(n);})){
+      clearResults(); error.textContent = "Calculation is not finite. Recheck the input values."; return;
+    }
+    for (const name of Object.keys(result)) {
+      document.getElementById(name).textContent = result[name].toFixed(3);
+    }
+    document.getElementById("detail").hidden = false;
+    document.getElementById("status").textContent = "Calculated using the Stewart–Figge approximation.";
+    lastResult = {values:values, results:result};
+    download.disabled = false;
+  });
+
+  form.addEventListener("input", clearResults);
+  document.getElementById("reset").addEventListener("click", function() {
+    form.reset(); clearResults();
+  });
+  download.addEventListener("click", function() {
+    if (!lastResult) return;
+    const keys = names.concat(["sida_mEq_L","side_mEq_L","sig_mEq_L","bicarbonate_mmol_L","albumin_charge_mEq_L","phosphate_charge_mEq_L"]);
+    const r = lastResult.results, v = lastResult.values;
+    const data = {...v, sida_mEq_L:r.sida,side_mEq_L:r.side,sig_mEq_L:r.sig,
+      bicarbonate_mmol_L:r.bicarbonate,albumin_charge_mEq_L:r.albumin_charge,
+      phosphate_charge_mEq_L:r.phosphate_charge};
+    const csv = keys.join(",")+"\r\n"+keys.map(function(k){return String(data[k]);}).join(",")+"\r\n";
+    const url = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8"}));
+    const anchor = document.createElement("a");
+    anchor.href = url; anchor.download = "stewart-sid-results.csv";
+    document.body.appendChild(anchor); anchor.click(); anchor.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 0);
+  });
+})();
+</script>
+</body>
+</html>
