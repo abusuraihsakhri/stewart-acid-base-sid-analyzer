@@ -36,8 +36,9 @@ def calculate_metrics(*, sodium, potassium, ionized_calcium, ionized_magnesium,
     Albumin g/L, phosphate and ions mmol/L, PaCO2 mmHg.
     Values are calculation results, not diagnostic thresholds.
     """
+    raw = {name: locals()[name] for name in INPUT_FIELDS}
     vals = {}
-    for name, value in locals().copy().items():
+    for name, value in raw.items():
         try:
             number = float(value)
         except (TypeError, ValueError, OverflowError) as exc:
