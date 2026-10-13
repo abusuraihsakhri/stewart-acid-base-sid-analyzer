@@ -1,5 +1,5 @@
 """
-Enterprise Security, PHI Outbound Guard, and HMAC-SHA256 Audit Trail.
+Best-effort identifier pattern filter and in-process HMAC-SHA256 audit trail.
 
 """
 import os
@@ -24,7 +24,7 @@ PHI_PATTERNS = [
 
 
 class SecurityException(Exception):
-    """Raised when outbound data violates HIPAA Safe Harbor or contains raw PHI."""
+    """Raised when a known identifier pattern is detected (not comprehensive PHI detection)."""
     pass
 
 
@@ -61,7 +61,7 @@ class AuditTrail:
         if not resolved_key:
             import warnings
             warnings.warn(
-                "AUDIT_SECRET_KEY not set. Using a development-only fallback. "
+                "AUDIT_SECRET_KEY not set. Using a per-process ephemeral signing key. "
                 "Set AUDIT_SECRET_KEY in production for secure audit integrity.",
                 RuntimeWarning,
                 stacklevel=2,
