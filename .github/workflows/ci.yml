@@ -32,13 +32,18 @@ jobs:
     - name: Run Pytest Suite
       run: pytest -v
 
-    - name: Security SAST & Zero-PHI Audit
+    - name: Identifier Filter and Audit Integrity Smoke Test
       run: |
         python -c "
-        from agents.base import PHIGuard, AuditLogger
-        import pytest
+        from agents.base import PHIGuard, AuditLogger, SecurityException
         assert AuditLogger.verify_integrity() is True
-        print('Security & Zero-PHI Audit Passed!')
+        try:
+            PHIGuard.assert_no_phi('MRN-994827')
+            raise AssertionError('Known identifier was not blocked')
+        except SecurityException:
+            pass
+        print('Identifier filter and HMAC audit checks passed')
+        
         "
 
   deploy-pages:
@@ -66,3 +71,11 @@ jobs:
       - name: Deploy GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Verify published HTML
+        env:
+          LIVE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          curl --fail --location --retry 5 --retry-delay 2 "$LIVE_URL" --output /tmp/stewart-pages.html
+          grep -q 'id="calculator"' /tmp/stewart-pages.html
+          grep -q 'id="download"' /tmp/stewart-pages.html
