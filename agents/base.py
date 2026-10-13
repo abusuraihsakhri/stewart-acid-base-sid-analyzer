@@ -66,8 +66,8 @@ class AuditTrail:
                 RuntimeWarning,
                 stacklevel=2,
             )
-            resolved_key = "INSECURE_DEV_FALLBACK_CHANGE_ME"
-        self.secret_key = resolved_key.encode("utf-8")
+            resolved_key = None
+        self.secret_key = resolved_key.encode("utf-8") if resolved_key else os.urandom(32)
         self.logs: List[Dict[str, Any]] = []
 
     def log(self, actor: str, actor_tier: str, event_type: str, details: Dict[str, Any]) -> Dict[str, Any]:
@@ -93,14 +93,26 @@ class AuditTrail:
         return entry
 
     def verify_integrity(self) -> bool:
-        for i, entry in enumerate(self.logs):
-            prev = self.logs[i-1]["current_hash"] if i > 0 else "GENESIS_BLOCK_0000000000000000"
-            if entry["prev_hash"] != prev:
+        """Check predecessor continuity and independently authenticate every entry."""
+        previous = "GENESIS_BLOCK_0000000000000000"
+        for entry in self.logs:
+            if entry.get("prev_hash") != previous:
                 return False
+            try:
+                signed = "|".join(str(entry[k]) for k in (
+                    "audit_id", "timestamp", "actor", "actor_tier",
+                    "event_type", "payload_hash", "prev_hash",
+                ))
+                expected = hmac.new(self.secret_key, signed.encode("utf-8"), hashlib.sha256).hexdigest()
+                if not hmac.compare_digest(expected, entry["current_hash"]):
+                    return False
+            except (KeyError, TypeError):
+                return False
+            previous = entry["current_hash"]
         return True
 
     def get_trail(self) -> List[Dict[str, Any]]:
-        return self.logs
+        return [dict(entry) for entry in self.logs]
 
 
 GLOBAL_AUDIT = AuditTrail()
