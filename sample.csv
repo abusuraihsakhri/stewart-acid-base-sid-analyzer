@@ -1,4 +1,4 @@
-Patient_ID,v1,v2,v3
-PT-101,14.5,4.2,1.8
-PT-102,8.0,2.1,0.5
-PT-103,28.4,12.0,5.5
+case_id,sodium,potassium,ionized_calcium,ionized_magnesium,chloride,lactate,ph,pco2,albumin,phosphate
+EXAMPLE-01,140,4,1.2,0.8,104,1.5,7.4,40,40,1.2
+EXAMPLE-02,135,3.8,1.1,0.7,110,5,7.25,30,25,1.5
+EXAMPLE-03,145,4.2,1.25,0.9,100,1,7.48,35,38,1.0
