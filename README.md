@@ -33,7 +33,7 @@ Reference: [The Stewart Approach—One Clinician's Perspective](https://pmc.ncbi
 
 Open `index.html` directly, enter same-time-point laboratory measurements and select **Calculate SID / SIG**. Select **Export CSV** to save the current values and results. **Restore example** reloads non-patient example measurements. `web/index.html` redirects to the main app.
 
-The browser calculation is implemented in JavaScript because these equations require no Python-specific libraries. **Pyodide/PyScript are not required**. The page needs a modern browser with ES2017 support; the calculations work without a network connection. An external literature link requires a connection only if selected.
+The browser calculation is implemented in JavaScript because these equations require no Python-specific libraries. **Pyodide/PyScript are not required**. The page needs a modern browser with ES2018 support; the calculations work without a network connection. An external literature link requires a connection only if selected.
 
 ## Python CLI
 
