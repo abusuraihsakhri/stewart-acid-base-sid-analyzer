@@ -1,178 +1,79 @@
-# Stewart Acid Base Sid Analyzer
+# Stewart Acid–Base SID Analyzer
 
-> **Domain:** Clinical Decision Support & Biomedical Computing
-> **Reference Guidelines & Standards:** `Standard Clinical Formulations & ISO/IEC Quality Frameworks`
+A Stewart–Figge physicochemical acid–base calculator for **apparent strong ion difference (SIDa)**, **effective strong ion difference (SIDe)**, and **strong ion gap (SIG)**. The calculation engine is available in Python, as a local FastAPI endpoint, and as a standalone JavaScript browser application suitable for GitHub Pages.
 
-<div align="center">
+**Scope:** Research and education. This is not a validated medical device or a stand-alone diagnostic or treatment algorithm.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688.svg?logo=fastapi&logoColor=white)
-![Audit Trail](https://img.shields.io/badge/Audit-HMAC--SHA256_Tamper--Evident-brightgreen.svg)
-![Zero-PHI Guard](https://img.shields.io/badge/Guard-Zero--PHI_Outbound-blue.svg)
-![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)
+## Main features
 
-</div>
+- Fully client-side browser calculator with explicit laboratory units, numerical validation, and CSV export. No Python runtime, account, or server is needed to calculate in the browser.
+- Zero-dependency Python calculation engine with single-case and batch-CSV modes.
+- FastAPI `POST /api/calculate` endpoint and automatically generated interactive API documentation at `/docs`.
+- Separate legacy demonstration audit/chat modules for software workflows; **these do not derive clinical severity from Stewart physiology**.
+- Numerical regression tests, input-validation tests, audit HMAC verification tests, and GitHub Actions CI for Python 3.10–3.12.
 
----
+## Calculation and units
 
-## 📖 What It Does
-
-Stewart Physicochemical Acid-Base & Strong Ion Difference (SID)
-Calculates apparent SID (SIDa), effective SID (SIDe), and Strong Ion Gap (SIG) for complex ICU dysnatremias.
-
-Zero-dependency Python implementation with single and batch evaluation.
-Author: Dr. Abu Suraih Sakhri
-License: MIT
-
----
-
-## ⚙️ Key Capabilities & Algorithmic Modules
-
-### 🔬 Analytical Functions
-
-- **`calculate_metrics()`**: Core domain algorithm for stewart-acid-base-sid-analyzer.
-- **`process_single()`** — calculates and validates process_single parameters.
-- **`process_batch()`** — calculates and validates process_batch parameters with input validation and error handling.
-- **`main()`** — CLI entry point with graceful error handling.
-
----
-
-## 📐 Mathematical Formulation & Logic
+All strong-ion inputs, including **ionized Ca²⁺ and Mg²⁺**, are supplied in **mmol/L**. The divalent ions are multiplied by 2 to express their charge contribution in mEq/L. Albumin is **g/L**; inorganic phosphate is **mmol/L**; **PaCO₂ is mmHg**; pH is unitless.
 
 ```text
-  score = primary_val
-  rounded_score = round(score, 2)
-  res = calculate_metrics(**kwargs)
-  calc_res = calculate_metrics(**r)
+SIDa = [Na+] + [K+] + 2[iCa2+] + 2[iMg2+] - [Cl-] - [lactate-]
+HCO3- = 0.0301 * PaCO2 * 10^(pH - 6.1)
+Alb- = albumin * (0.123 * pH - 0.631)
+Pi- = phosphate * (0.309 * pH - 0.469)
+SIDe = HCO3- + Alb- + Pi-
+SIG  = SIDa - SIDe
 ```
 
----
+SIDa, SIDe and SIG are reported in **mEq/L**; estimated bicarbonate is in **mmol/L**. Precision is retained through calculation and rounded to 3 decimal places for reporting. The result depends on measured species, sampling and analytical uncertainty and should not be interpreted against a universal severity cutoff.
 
-## 💻 Installation
+Reference: [The Stewart Approach—One Clinician's Perspective](https://pmc.ncbi.nlm.nih.gov/articles/PMC2702213/). For clinical research comparisons see [Strong ion gap and anion gap corrected for albumin and lactate in ICU sepsis](https://pmc.ncbi.nlm.nih.gov/articles/PMC11101998/).
+
+## Browser use
+
+Open `index.html` directly, enter same-time-point laboratory measurements and select **Calculate SID / SIG**. Select **Export CSV** to save the current values and results. **Restore example** reloads non-patient example measurements. `web/index.html` redirects to the main app.
+
+The browser calculation is implemented in JavaScript because these equations require no Python-specific libraries. **Pyodide/PyScript are not required**. The page needs a modern browser with ES2017 support; the calculations work without a network connection. An external literature link requires a connection only if selected.
+
+## Python CLI
 
 ```bash
-pip install -r requirements.txt
-```
+python -m pip install -r requirements.txt
+python stewart_sid.py single \
+  --sodium 140 --potassium 4 --ionized-calcium 1.2 --ionized-magnesium 0.8 \
+  --chloride 104 --lactate 1.5 --ph 7.4 --pco2 40 --albumin 40 --phosphate 1.2
 
----
-
-## 💻 CLI Quickstart & Usage
-
-### 1. Single Evaluation
-```bash
-python stewart_sid.py single --v1 15.0 --v2 5.0 --v3 2.0
-```
-
-### 2. Batch CSV Processing
-```bash
 python stewart_sid.py batch -i sample.csv -o results.csv
-```
-
-### 3. Enterprise CLI (requires FastAPI/uvicorn)
-```bash
-python cli.py audit --task-id TASK-001 --primary 28.5 --secondary 14.2
-python cli.py batch -i sample.csv -o results.csv
-python cli.py chat "Explain Stewart parameters"
-python cli.py verify-audit
-python cli.py serve --host 127.0.0.1 --port 8000
-```
-
-### Parameter Reference
-- `--v1`: Primary parameter (float, default: 10.0)
-- `--v2`: Secondary parameter (float, default: 5.0)
-- `--v3`: Tertiary parameter (float, default: 2.0)
-- `-i, --input`: Input CSV file path (required for batch)
-- `-o, --output`: Output CSV file path (default: results.csv)
-
-### Input Data Schema
-
-| Field | Description | Requirement |
-|:------|:------------|:------------|
-| `Patient_ID` | Parameter / observation metric | Required |
-| `v1` | Parameter / observation metric | Required |
-| `v2` | Parameter / observation metric | Required |
-| `v3` | Parameter / observation metric | Required |
-
----
-
-## 🛡️ Security & Enterprise Architecture
-
-* **Zero-PHI Outbound Interceptor:** Active AST and regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers.
-* **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs for every evaluation and state transition.
-* **Air-Gapped LLM Reasoning Adapter:** Agnostic integration for local Ollama instances (`llama3`, `mistral`), Claude 3.5 Sonnet, GPT-4o, and deterministic test mocks.
-* **Active Learning Bayesian Calibration:** Dynamic tracker updating worker reliability weights and monitoring Brier calibration drift.
-* **FastAPI & Prometheus Telemetry:** Exposes OpenAPI 3.1 REST endpoints and operational Prometheus metrics (`/metrics`).
-
-### Security Configuration
-
-Set the `AUDIT_SECRET_KEY` environment variable for production deployments:
-
-```bash
-# Linux/macOS
-export AUDIT_SECRET_KEY="your-secure-random-key"
-
-# Windows
-set AUDIT_SECRET_KEY=your-secure-random-key
-```
-
----
-
-## 🧪 Testing & Verification
-
-Run the automated test suite:
-
-```bash
 pytest -v
 ```
 
-Execute high-throughput batch simulation benchmarks:
+Batch CSV input must contain the exact input columns present in `sample.csv`. Extra metadata columns are retained, and incomplete or invalid records are rejected. The export protects text fields beginning with spreadsheet formula characters.
+
+## Local API and optional demonstration components
 
 ```bash
-python simulator.py --tasks 1000 --concurrency 8
+python cli.py serve --host 127.0.0.1 --port 8000
 ```
 
----
+Open `http://127.0.0.1:8000/` for the locally served calculator or `http://127.0.0.1:8000/docs` for the API. The `POST /api/calculate` JSON request takes the ten measurement fields named in the CLI example (underscores instead of hyphens). FastAPI serves the authoritative OpenAPI schema at `/openapi.json`.
 
-## 🐳 Container Deployment
+The older `python cli.py audit`, `batch`, `chat`, and `verify-audit` commands remain available for generic workflow demonstrations. Their thresholds and mock chat responses are **not clinically validated**. External LLM providers are not implemented.
+
+### Docker
 
 ```bash
-docker build -t stewart-acid-base-sid-analyzer .
-docker run -p 8000:8000 -e AUDIT_SECRET_KEY=your-secure-key stewart-acid-base-sid-analyzer
+export AUDIT_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+docker compose up --build
 ```
 
-Or using Docker Compose:
+Compose binds to localhost by default. The signing key is required for Compose; the process otherwise generates an ephemeral key for local development. Audit records are **in memory**, not a durable multi-process ledger.
 
-```bash
-docker-compose up -d
-```
+## Privacy and security
 
----
+The standalone page processes entered numbers locally, with no analytics, external scripts, uploads or browser storage. The Python CLI also computes locally. **Using the API transmits request data to the configured API server**. The legacy agent modules include a limited identifier-pattern filter, not comprehensive PHI detection, anonymization or HIPAA compliance. Do not submit identifiable patient information.
 
-## 📁 Project Structure
+Never embed server signing keys in static pages or commit them to source control. Set `AUDIT_SECRET_KEY` securely in any server deployment.
 
-```
-stewart-acid-base-sid-analyzer/
-├── agents/                 # Enterprise agent framework
-│   ├── api.py             # FastAPI REST server
-│   ├── base.py            # Security, PHI guard, HMAC audit
-│   ├── models.py          # Pydantic data models
-│   ├── supervisor.py      # Multi-agent orchestrator
-│   ├── workers.py         # Specialized domain workers
-│   ├── llm_factory.py     # LLM provider factory
-│   ├── learning.py        # Bayesian calibration engine
-│   ├── metrics.py         # Prometheus metrics exporter
-│   └── streamer.py        # WebSocket telemetry broadcaster
-├── tests/                 # Pytest test suite
-├── web/index.html         # Operations console UI
-├── cli.py                 # Enterprise CLI entry point
-├── stewart_sid.py         # Core SID analysis engine
-├── enrichment.py          # Clinical enrichment modules
-├── simulator.py           # High-throughput stress tester
-├── sample.csv             # Sample input data
-├── benchmark_dataset.json # Golden benchmark test cases
-├── openapi_spec.json      # OpenAPI 3.1 specification
-├── requirements.txt       # Python dependencies
-├── Dockerfile             # Container build config
-└── docker-compose.yml     # Multi-service orchestration
-```
+## Technology and license
+
+Python 3.10–3.12, FastAPI, Pydantic 2, Pytest; vanilla HTML/CSS/JavaScript for the browser. [MIT License](LICENSE).
