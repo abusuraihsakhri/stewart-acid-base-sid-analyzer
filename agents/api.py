@@ -1,9 +1,11 @@
 """
 FastAPI REST API Server for Stewart Acid Base Sid Analyzer.
 """
-from typing import Dict, Any, List
+from pathlib import Path
+from fastapi.responses import FileResponse
+from stewart_sid import calculate_metrics
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from .base import AuditLogger, PHIGuard
 from .models import SystemTaskPayload, ConsensusDossier
 from .supervisor import SystemSupervisor
@@ -17,8 +19,35 @@ app = FastAPI(
 )
 
 
+class CalculationRequest(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False, extra="forbid")
+    sodium: float
+    potassium: float
+    ionized_calcium: float
+    ionized_magnesium: float
+    chloride: float
+    lactate: float
+    ph: float
+    pco2: float
+    albumin: float
+    phosphate: float
+
+
 class ChatRequest(BaseModel):
     query: str
+
+
+@app.get("/", include_in_schema=False)
+def browser_app():
+    return FileResponse(Path(__file__).resolve().parent.parent / "index.html")
+
+
+@app.post("/api/calculate")
+def api_calculate(payload: CalculationRequest):
+    try:
+        return calculate_metrics(**payload.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.get("/health")
