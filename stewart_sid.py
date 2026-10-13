@@ -64,6 +64,8 @@ def calculate_metrics(*, sodium, potassium, ionized_calcium, ionized_magnesium,
     pi_charge = vals["phosphate"] * (0.309 * vals["ph"] - 0.469)
     side = bicarbonate + alb_charge + pi_charge
     sig = sida - side
+    if not all(math.isfinite(v) for v in (sida, side, sig, bicarbonate, alb_charge, pi_charge)):
+        raise ValueError("Calculated result is not finite; review input magnitudes")
     return {
         "sida_mEq_L": round(sida, 3),
         "side_mEq_L": round(side, 3),
