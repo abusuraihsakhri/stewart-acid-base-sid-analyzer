@@ -14,7 +14,7 @@ supervisor = SystemSupervisor(model_provider="mock")
 
 app = FastAPI(
     title="Stewart Acid Base Sid Analyzer API",
-    description="Enterprise Distributed Component Platform (Clinical & Biomedical AI)",
+    description="Stewart–Figge calculation API with separate legacy demonstration audit endpoints",
     version="3.0.0-ENTERPRISE",
 )
 
@@ -52,7 +52,7 @@ def api_calculate(payload: CalculationRequest):
 
 @app.get("/health")
 def health():
-    return {"status": "HEALTHY", "service": "stewart-acid-base-sid-analyzer", "domain": "Clinical & Biomedical AI", "standard": "CAP / CLSI / ISO Standards", "version": "3.0.0-ENTERPRISE"}
+    return {"status": "HEALTHY", "service": "stewart-acid-base-sid-analyzer", "domain": "Clinical & Biomedical AI", "standard": "Stewart–Figge research equations", "version": "3.0.0-ENTERPRISE"}
 
 
 @app.get("/metrics")
