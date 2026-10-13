@@ -92,6 +92,8 @@ def process_batch(input_csv, output_csv):
             raise ValueError("Input CSV has no headers")
         if len(headers) != len(set(headers)):
             raise ValueError("Input CSV has duplicate headers")
+        if any(not h or h.lstrip().startswith(("=", "+", "-", "@")) for h in headers):
+            raise ValueError("Input CSV has unsafe or empty headers")
         missing = [field for field in INPUT_FIELDS if field not in headers]
         if missing:
             raise ValueError("Missing required CSV columns: " + ", ".join(missing))
