@@ -36,7 +36,9 @@ def calculate_metrics(*, sodium, potassium, ionized_calcium, ionized_magnesium,
     Albumin g/L, phosphate and ions mmol/L, PaCO2 mmHg.
     Values are calculation results, not diagnostic thresholds.
     """
-    raw = {name: locals()[name] for name in INPUT_FIELDS}
+    raw = dict(sodium=sodium, potassium=potassium, ionized_calcium=ionized_calcium,
+               ionized_magnesium=ionized_magnesium, chloride=chloride, lactate=lactate,
+               ph=ph, pco2=pco2, albumin=albumin, phosphate=phosphate)
     vals = {}
     for name, value in raw.items():
         try:
